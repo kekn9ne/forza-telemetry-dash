@@ -1,0 +1,527 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Forza Telemetry</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body { 
+            background: linear-gradient(135deg, #0f0f1a 0%, #1a1a2e 100%);
+            color: #ffffff;
+            font-family: 'Orbitron', sans-serif;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            overflow: hidden;
+        }
+
+        .container {
+            background: rgba(15, 15, 26, 0.7);
+            backdrop-filter: blur(10px);
+            border-radius: 30px;
+            padding: 40px;
+            box-shadow: 
+                0 0 40px rgba(0, 0, 0, 0.5),
+                inset 0 0 20px rgba(255, 255, 255, 0.1);
+            width: 90%;
+            max-width: 1200px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            position: relative;
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 30px;
+        }
+
+        .circular-display {
+            background: rgba(0, 0, 0, 0.7);
+            width: 220px;
+            height: 220px;
+            border-radius: 50%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            border: 2px solid rgba(255, 255, 255, 0.1);
+            position: relative;
+            transition: all 0.3s ease;
+            overflow: hidden;
+        }
+
+        .circular-display::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, rgba(0,0,0,0) 70%);
+            pointer-events: none;
+        }
+
+        .rpm-circle {
+            color: #ff4444;
+            text-shadow: 0 0 20px rgba(255, 68, 68, 0.7);
+            box-shadow: 0 0 30px rgba(255, 68, 68, 0.3);
+        }
+
+        .gear-display {
+            color: #ffffff;
+            text-shadow: 0 0 20px rgba(255, 255, 255, 0.7);
+            box-shadow: 0 0 30px rgba(255, 255, 255, 0.3);
+            font-size: 6rem;
+            font-weight: 700;
+        }
+
+        .speed-display {
+            color: #00ffff;
+            text-shadow: 0 0 20px rgba(0, 255, 255, 0.7);
+            box-shadow: 0 0 30px rgba(0, 255, 255, 0.3);
+        }
+
+        .rpm-value {
+            font-size: 3rem;
+            font-weight: 700;
+            margin-bottom: 5px;
+            position: relative;
+            z-index: 2;
+        }
+
+        .rpm-label {
+            font-size: 1.2rem;
+            color: rgba(255, 255, 255, 0.7);
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            position: relative;
+            z-index: 2;
+        }
+
+        .progress-container {
+            width: 100%;
+            position: relative;
+            margin-top: 30px;
+            padding: 0 20px;
+        }
+
+        .progress-bar {
+            height: 50px;
+            background: rgba(0, 0, 0, 0.5);
+            border-radius: 25px;
+            overflow: hidden;
+            position: relative;
+            border: 2px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 
+                0 0 20px rgba(0, 0, 0, 0.5),
+                inset 0 0 10px rgba(0, 0, 0, 0.5);
+        }
+
+        .progress {
+            height: 100%;
+            background: linear-gradient(90deg, 
+                #00ff00 0%, 
+                #ffff00 60%, 
+                #ff4444 80%, 
+                #ff0000 100%
+            );
+            width: 0%;
+            transition: all 0.05s linear;
+            position: relative;
+            box-shadow: 0 0 30px rgba(255, 68, 68, 0.5);
+        }
+
+        .progress::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(
+                to bottom,
+                rgba(255, 255, 255, 0.2) 0%,
+                rgba(255, 255, 255, 0.1) 50%,
+                rgba(0, 0, 0, 0.1) 51%,
+                rgba(0, 0, 0, 0.2) 100%
+            );
+        }
+
+        .shift-indicator {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(255, 0, 0, 0.3);
+            backdrop-filter: blur(5px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 15vw;
+            font-weight: 900;
+            color: #ff0000;
+            opacity: 0;
+            pointer-events: none;
+            z-index: 1000;
+            text-shadow: 
+                0 0 20px rgba(255, 0, 0, 0.8),
+                0 0 40px rgba(255, 0, 0, 0.8),
+                0 0 60px rgba(255, 0, 0, 0.8);
+            transition: all 0.1s;
+            transform: scale(0.8);
+        }
+
+        .shift-indicator.active {
+            opacity: 1;
+            transform: scale(1);
+            animation: shift-pulse 0.5s infinite;
+        }
+
+        @keyframes shift-pulse {
+            0% {
+                transform: scale(1);
+                background: rgba(255, 0, 0, 0.3);
+            }
+            50% {
+                transform: scale(1.1);
+                background: rgba(255, 0, 0, 0.5);
+            }
+            100% {
+                transform: scale(1);
+                background: rgba(255, 0, 0, 0.3);
+            }
+        }
+
+        #timestamp {
+            position: absolute;
+            bottom: 15px;
+            right: 15px;
+            font-size: 0.9rem;
+            color: rgba(255, 255, 255, 0.4);
+            font-family: monospace;
+        }
+
+        @media (max-width: 768px) {
+            .circular-display {
+                width: 180px;
+                height: 180px;
+            }
+            .rpm-value {
+                font-size: 2.5rem;
+            }
+            .gear-display {
+                font-size: 5rem;
+            }
+        }
+
+        .settings-button {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            z-index: 1001;
+        }
+
+        .settings-button:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .settings-panel {
+            position: fixed;
+            top: 70px;
+            right: 20px;
+            background: rgba(15, 15, 26, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 10px;
+            padding: 20px;
+            width: 300px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+            transform: translateX(120%);
+            transition: transform 0.3s ease;
+            z-index: 1001;
+        }
+
+        .settings-panel.active {
+            transform: translateX(0);
+        }
+
+        .settings-panel h2 {
+            margin-bottom: 20px;
+            color: #fff;
+            font-size: 1.2rem;
+        }
+
+        .settings-option {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 15px;
+        }
+
+        .settings-option label {
+            color: #fff;
+            font-size: 1rem;
+        }
+
+        .toggle-switch {
+            position: relative;
+            display: inline-block;
+            width: 50px;
+            height: 24px;
+        }
+
+        .toggle-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .toggle-slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(255, 255, 255, 0.2);
+            transition: .4s;
+            border-radius: 24px;
+        }
+
+        .toggle-slider:before {
+            position: absolute;
+            content: "";
+            height: 16px;
+            width: 16px;
+            left: 4px;
+            bottom: 4px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+
+        .toggle-switch input:checked + .toggle-slider {
+            background-color: #00ffff;
+        }
+
+        .toggle-switch input:checked + .toggle-slider:before {
+            transform: translateX(26px);
+        }
+
+        .notification {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%) translateY(-100%);
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 15px 25px;
+            border-radius: 8px;
+            z-index: 1002;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            opacity: 0;
+            transition: transform 0.3s ease, opacity 0.3s ease;
+            pointer-events: none;
+        }
+
+        .notification.show {
+            transform: translateX(-50%) translateY(0);
+            opacity: 1;
+        }
+
+        .notification.success {
+            border-left: 4px solid #00ff00;
+        }
+
+        .notification.warning {
+            border-left: 4px solid #ffff00;
+        }
+
+        .notification.error {
+            border-left: 4px solid #ff0000;
+        }
+    </style>
+</head>
+<body>
+    <div class="notification" id="notification"></div>
+    <div class="settings-button" onclick="toggleSettings()">⚙️</div>
+    <div class="settings-panel" id="settingsPanel">
+        <h2>Settings</h2>
+        <div class="settings-option">
+            <label>Show Shift Indicator</label>
+            <label class="toggle-switch">
+                <input type="checkbox" id="shiftIndicatorToggle" checked onchange="updateShiftIndicatorSetting()">
+                <span class="toggle-slider"></span>
+            </label>
+        </div>
+    </div>
+
+    <div class="shift-indicator" id="shiftIndicator">SHIFT</div>
+    <div class="container">
+        <div class="circular-display rpm-circle">
+            <div class="rpm-value" id="current-rpm">0</div>
+            <div class="rpm-label">RPM</div>
+        </div>
+        
+        <div class="circular-display gear-display" id="gear">1</div>
+        
+        <div class="circular-display speed-display">
+            <div class="rpm-value" id="speed">0</div>
+            <div class="rpm-label">KM/H</div>
+        </div>
+
+        <div class="progress-container">
+            <div class="progress-bar">
+                <div class="progress" id="rpm-bar"></div>
+            </div>
+        </div>
+        
+        <div id="timestamp">Last updated: -</div>
+    </div>
+
+    <script>
+        const evtSource = new EventSource("/stream");
+        const currentRpmElement = document.getElementById("current-rpm");
+        const gearElement = document.getElementById("gear");
+        const rpmBar = document.getElementById("rpm-bar");
+        const speedElement = document.getElementById("speed");
+        
+        let showShiftIndicator = true;
+
+        function formatGear(gear) {
+            if (gear === 0) return 'R';
+            return gear.toString();
+        }
+        
+        function toggleSettings() {
+            const panel = document.getElementById('settingsPanel');
+            panel.classList.toggle('active');
+        }
+
+        function updateShiftIndicatorSetting() {
+            showShiftIndicator = document.getElementById('shiftIndicatorToggle').checked;
+            // Save setting to localStorage
+            localStorage.setItem('showShiftIndicator', showShiftIndicator);
+        }
+
+        function updateShiftIndicator(rpmPercentage, gear) {
+            const shouldShowShift = showShiftIndicator && rpmPercentage >= 85 && rpmPercentage <= 98 && gear > 0;
+            const shiftIndicator = document.getElementById("shiftIndicator");
+            if (shouldShowShift) {
+                shiftIndicator.classList.add('active');
+                if ('vibrate' in navigator) {
+                    navigator.vibrate(200);
+                }
+            } else {
+                shiftIndicator.classList.remove('active');
+            }
+        }
+
+        function showNotification(message, type = 'info') {
+            const notification = document.getElementById('notification');
+            
+            // Clear any existing timeout
+            if (notification.hideTimeout) {
+                clearTimeout(notification.hideTimeout);
+            }
+            
+            notification.textContent = message;
+            notification.className = 'notification ' + type;
+            
+            // Force a reflow to ensure the transition works
+            notification.offsetHeight;
+            
+            // Show the notification
+            notification.classList.add('show');
+            
+            // Also show system notification if permission is granted
+            if (Notification.permission === "granted") {
+                new Notification("Forza Telemetry", {
+                    body: message,
+                    icon: "/favicon.ico"
+                });
+            }
+
+            // Hide notification after 3 seconds
+            notification.hideTimeout = setTimeout(() => {
+                notification.classList.remove('show');
+            }, 3000);
+        }
+
+        // Request notification permission when the page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            if (Notification.permission !== "granted" && Notification.permission !== "denied") {
+                Notification.requestPermission();
+            }
+            
+            // Load saved settings
+            const savedSetting = localStorage.getItem('showShiftIndicator');
+            if (savedSetting !== null) {
+                showShiftIndicator = savedSetting === 'true';
+                document.getElementById('shiftIndicatorToggle').checked = showShiftIndicator;
+            }
+        });
+
+        evtSource.onmessage = function(event) {
+            const data = JSON.parse(event.data);
+            
+            // Handle connection status messages
+            if (data.type === 'connection_status') {
+                const type = data.connected ? 'success' : 'warning';
+                showNotification(data.message, type);
+                return;
+            }
+            
+            // Handle regular telemetry data
+            const rpmPercentage = (data.current_rpm / data.max_rpm * 100) || 0;
+            
+            // Update RPM displays
+            currentRpmElement.textContent = Math.round(data.current_rpm);
+            
+            // Update speed
+            speedElement.textContent = Math.round(data.speed);
+            
+            // Update gear display
+            const gearText = formatGear(data.gear);
+            gearElement.textContent = gearText;
+            gearElement.classList.toggle('reverse', gearText === 'R');
+            
+            // Update progress bar
+            rpmBar.style.width = `${rpmPercentage}%`;
+            
+            // Update shift indicator
+            updateShiftIndicator(rpmPercentage, data.gear);
+            
+            // Update timestamp
+            document.getElementById("timestamp").textContent = `Last updated: ${data.timestamp}`;
+        };
+
+        // Add error handler for connection issues
+        evtSource.onerror = function() {
+            showNotification('Connection to server lost. Retrying...', 'error');
+        };
+    </script>
+</body>
+</html> 

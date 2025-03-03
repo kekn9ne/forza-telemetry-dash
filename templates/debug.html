@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Forza Telemetry Debug</title>
+    <style>
+        body {
+            background: #1a1a1a;
+            color: #fff;
+            font-family: 'Arial', sans-serif;
+            padding: 20px;
+        }
+        .debug-container {
+            background: rgba(0, 0, 0, 0.4);
+            border-radius: 10px;
+            padding: 20px;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        .value-display {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 20px;
+            border-radius: 5px;
+            margin-bottom: 10px;
+            font-family: monospace;
+            font-size: 1.2em;
+        }
+        .value {
+            font-size: 1.4em;
+            color: #fff;
+        }
+        .label {
+            color: #888;
+            margin-bottom: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="debug-container">
+        <h1>Forza Telemetry Debug</h1>
+        
+        <div class="value-display">
+            <div class="label">RPM Values</div>
+            <div class="value">Current RPM: <span id="currentRpm">0</span></div>
+            <div class="value">Max RPM: <span id="maxRpm">0</span></div>
+            <div class="value">RPM Percentage: <span id="rpmPercent">0</span>%</div>
+        </div>
+
+        <div class="value-display">
+            <div class="label">Vehicle Data</div>
+            <div class="value">Speed: <span id="speed">0</span> km/h</div>
+            <div class="value">Gear: <span id="currentGear">1</span></div>
+            <div class="value">Throttle: <span id="throttle">0</span>%</div>
+        </div>
+    </div>
+
+    <script>
+        const evtSource = new EventSource("/debug_stream");
+        
+        function formatGear(gear) {
+            if (gear === 0) return 'R';
+            return gear.toString();
+        }
+        
+        function updateDisplay(data) {
+            // Update RPM values
+            document.getElementById('currentRpm').textContent = Math.round(data.current_rpm);
+            document.getElementById('maxRpm').textContent = Math.round(data.max_rpm);
+            document.getElementById('rpmPercent').textContent = 
+                ((data.current_rpm / data.max_rpm * 100) || 0).toFixed(1);
+            
+            // Update vehicle data
+            document.getElementById('speed').textContent = Math.round(data.speed);
+            document.getElementById('currentGear').textContent = formatGear(data.gear);
+            document.getElementById('throttle').textContent = (data.throttle * 100).toFixed(1);
+        }
+        
+        evtSource.onmessage = function(event) {
+            const data = JSON.parse(event.data);
+            updateDisplay(data.debug_values);
+        };
+    </script>
+</body>
+</html> 
